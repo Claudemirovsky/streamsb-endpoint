@@ -1,0 +1,49 @@
+name: Update endpoint
+
+on:
+  schedule:
+    - cron:  '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Update endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v3
+        with:
+          ref: master
+
+      - name: Setup NodeJS environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install synchrony-cli
+        run: npm install -g deobfuscator
+
+      - name: Get latest obfuscated script from StreamSB
+        run: curl https://streamsb.net/embed-m5s0ph0l4bvg.html | grep "(function(_0x" > script.js
+
+      - name: Deobfuscate script and get sources path
+        run: |
+          set -e
+          synchrony script.js
+          ENDPOINT=$(grep -oP "/sources\w+" script.cleaned.js)
+          echo "Endpoint -> $ENDPOINT"
+          echo "ENDPOINT=$ENDPOINT" >> $GITHUB_ENV
+      
+      - name: Update endpoint if it differs
+        run: |
+          set -e
+          ENDPOINT_FILE="endpoint.txt"
+          ENDPOINT=${{ env.ENDPOINT }}
+          if [[ ! -e $ENDPOINT_FILE ]] || [[ "$(cat $ENDPOINT_FILE)" != "$ENDPOINT" ]]; then
+            echo -n "$ENDPOINT" > $ENDPOINT_FILE
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git config --global user.name "github-actions[bot]"
+            git add $ENDPOINT_FILE
+            git commit -m "Updating endpoint"
+            git push
+          fi
