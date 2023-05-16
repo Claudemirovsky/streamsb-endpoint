@@ -24,13 +24,13 @@ jobs:
         run: npm install -g deobfuscator
 
       - name: Get latest obfuscated script from StreamSB
-        run: curl https://streamsb.net/embed-m5s0ph0l4bvg.html | grep "(function(_0x" > script.js
+        run: curl https://streamsb.net/embed-m5s0ph0l4bvg.html | grep "(function(_0x" | sed "s/^<script>//" | sed 's@</script>.*$@@' > script.js
 
       - name: Deobfuscate script and get sources path
         run: |
           set -e
           synchrony script.js
-          ENDPOINT=$(grep -oP "/sources\w+" script.cleaned.js)
+          ENDPOINT=$(grep loadData: script.cleaned.js -A 20 | grep "url:" | grep -oP "/\w+")
           echo "Endpoint -> $ENDPOINT"
           echo "ENDPOINT=$ENDPOINT" >> $GITHUB_ENV
       
